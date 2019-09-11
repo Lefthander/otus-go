@@ -43,3 +43,44 @@ func TestStrUnpackIncorrectInputString(t *testing.T) {
 	}
 
 }
+
+func TestStrUnpackWithEscapeChar1(t *testing.T) {
+	teststring := `qwe\4\5`
+	expectedString := "qwe45"
+	result, err := StrUnpack(teststring)
+
+	if err != nil {
+		t.Error(err)
+	}
+	if result != expectedString {
+		t.Errorf("Returned string %s does not match the expected string %s", result, expectedString)
+	}
+
+}
+func TestStrUnpackWithEscapeChar2(t *testing.T) {
+	teststring := `qwe\45`
+	expectedString := "qwe44444"
+	result, err := StrUnpack(teststring)
+
+	if err != nil {
+		t.Error(err)
+	}
+	if result != expectedString {
+		t.Errorf("Returned string %s does not match the expected string %s", result, expectedString)
+	}
+
+}
+
+func TestStrUnpackWithEscapeChar3(t *testing.T) {
+	teststring := `qwe\\5`
+	expectedString := `qwe\\\\\`
+	result, err := StrUnpack(teststring)
+
+	if err != nil {
+		t.Error(err)
+	}
+	if result != expectedString {
+		t.Errorf("Returned string %s does not match the expected string %s", result, expectedString)
+	}
+
+}

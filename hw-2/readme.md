@@ -15,4 +15,4 @@ Examples:
 *  `qwe\45` => `qwe44444`
 
 * `qwe\\5` => `qwe\\\\\`
-* Unit Test are mandatory.
+* Unit Tests are mandatory.

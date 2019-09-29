@@ -8,20 +8,6 @@ import (
 	"fmt"
 )
 
-/*  List // тип контейнер
-Len() // длинна списка
-First() // первый Item
-Last() // последний Item
-PushFront(v interface{}) // добавить значение в начало
-PushBack(v interface{}) // добавить значение в конец
-Remove(i Item) // удалить элемент​ Hmmm logically remove should work with v:interface{}
- As we made add new item by value...
-Item // элемент списка
-Value() interface{} // возвращает значение
-Nex() *Item // следующий Item
-Prev() *Item // предыдущий
-*/
-
 // Item element of Double Linked List
 type Item struct {
 	DataContainer interface{} // Container to store the data

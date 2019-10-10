@@ -1,3 +1,6 @@
+// Sergey Olisov (c) 2019
+// Lesson 5
+// Workers pool
 package main
 
 import (
@@ -15,17 +18,17 @@ import (
 // 2. Run pool of such functions
 // 3. Manage errors from the functions
 
+// structure to hold the Errors Counter
 type errorsCnt struct {
 	sync.RWMutex
-	errorCounter   int
-	errorThreshold int
+	errorCounter   int // Error counter
+	errorThreshold int // Errors threshold
 }
 
-// Inc does increment of errorCounter in threadsafe way
+// Inc does the increment of errorCounter in threadsafe way
 func (ec *errorsCnt) Inc() {
 	ec.Lock()
 	ec.errorCounter++
-	fmt.Println("increased...", ec.errorCounter)
 	ec.Unlock()
 }
 
@@ -35,6 +38,8 @@ func (ec *errorsCnt) isThresholdReached() bool {
 	defer ec.RUnlock()
 	return ec.errorCounter == ec.errorThreshold
 }
+
+// Get returns a current value of errorCounter
 func (ec *errorsCnt) Get() int {
 	ec.RLock()
 	defer ec.RUnlock()
@@ -42,13 +47,13 @@ func (ec *errorsCnt) Get() int {
 }
 
 // ErrTaskError indicate that worker abnormaly terminated due to faulure of processing task
-var ErrTaskError = errors.New("Worker aborted")
+var ErrTaskError = errors.New("Worker aborted due to task error")
 
 func task() error {
 	fmt.Println("Starting task...")
 	start := time.Now()
 	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
-	if rand.Intn(10) >= 1 {
+	if rand.Intn(10) >= 5 {
 		fmt.Println("Time since start to get an error", time.Since(start))
 		return errors.New("Task has an error durinng execution")
 	}
@@ -56,25 +61,24 @@ func task() error {
 	return nil
 }
 
-// Dispatcher runs a set of functions(tasks) in parallel
+// Dispatcher runs a pool of workers (numberOfTasks) and assign the tasks to them from slice tasks
 func Dispatcher(tasks []func() error, numberOfTasks int, numberOfErrors int) error {
 
 	workersChannel := make(chan func() error, numberOfTasks) // Channel to assign a tasks to workers
 	errorsChannel := make(chan error, numberOfTasks)         // Channel to transfer errors from the tasks
 	defer close(errorsChannel)
 
-	shutdownChannel := make(chan struct{}) // Channel to send a shutdown command to all workers
+	shutdownChannel := make(chan bool) // Channel for a shutdown of all workers
 
 	errCnt := &errorsCnt{errorThreshold: numberOfErrors} // Structure to manage number of Errors, reported by workers
 
 	// Managing errors channel...
 	go func() {
 		for err := range errorsChannel {
-			errCnt.Inc()
+			errCnt.Inc() // Increment Error Counter
 			fmt.Println("Detected an error", err)
 			if errCnt.isThresholdReached() {
 				fmt.Println("Threshold number of errors has reached. Aborting...")
-				//shutdownChannel <- struct{}{}
 				close(shutdownChannel)
 				return
 			}
@@ -95,10 +99,10 @@ func Dispatcher(tasks []func() error, numberOfTasks int, numberOfErrors int) err
 					if err := task(); err != nil {
 						errorsChannel <- err
 					}
-					fmt.Println("Worked finished", i)
+					fmt.Println("Worked stopped", i)
 				}
 			}
-			fmt.Println("Worker finished succsessfully...", i)
+			fmt.Println("Worker finished...", i)
 			return nil
 		})
 	}
@@ -111,20 +115,23 @@ func Dispatcher(tasks []func() error, numberOfTasks int, numberOfErrors int) err
 		}
 	}
 	close(workersChannel)
-	return eg.Wait()
+
+	err := eg.Wait()
+	if err != nil {
+		return err
+	} else if errCnt.Get() != 0 {
+		return ErrTaskError
+	}
+	return nil
 }
 
 func main() {
 
 	tt := []func() error{task, task, task, task}
 	fmt.Println("Dispatcher Started...")
-	err := Dispatcher(tt, 4, 1)
+	err := Dispatcher(tt, 2, 1)
 	if err != nil {
 		fmt.Println("Dispatcher finished with errors", err)
 	}
 	fmt.Println("Dispatcher ended...", err)
-	//interrupt := make(chan os.Signal, 1)
-	//signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
-	//fmt.Printf("Received an system interrupt %v...\n", <-interrupt)
-	//fmt.Println("Number of available cpus", runtime.NumCPU())
 }

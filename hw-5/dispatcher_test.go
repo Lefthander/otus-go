@@ -73,14 +73,22 @@ var TestCases = []struct {
 		errorProbability: 5,
 		expectedResult:   ErrTaskError,
 	},
-	//	{
-	//		testCaseID:       "Basic test 8, expected 5 error. Number of tasks are less then number of workers",
-	//		numberOfTasks:    4,
-	//		numberOfWorkers:  8,
-	//		numberOfErrors:   1,
-	//		errorProbability: 1,
-	//		expectedResult:   ErrTaskError,
-	//	},
+	{
+		testCaseID:       "Basic test 8, expected 1 error. Number of tasks are equal to number of workers",
+		numberOfTasks:    4,
+		numberOfWorkers:  4,
+		numberOfErrors:   1,
+		errorProbability: 1,
+		expectedResult:   ErrTaskError,
+	},
+	{
+		testCaseID:       "Basic test 9, expected 1 error. Number of tasks are less then number of workers",
+		numberOfTasks:    2,
+		numberOfWorkers:  4,
+		numberOfErrors:   1,
+		errorProbability: 1,
+		expectedResult:   ErrTaskError,
+	},
 }
 
 func TestDispatcher(t *testing.T) {
@@ -112,8 +120,6 @@ func tasksBuilder() {
 			}
 			tasks = append(tasks, task)
 		}
-		//test.tasks = tasks
 		TestCases[i].tasks = tasks
-		//fmt.Println(test.tasks)
 	}
 }

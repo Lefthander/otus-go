@@ -9,11 +9,16 @@ import (
 	"github.com/cheggaaa/pb/v3"
 )
 
+// Create a random file with specific size - Powershell Windows
+// $out = new-object byte[] 50G; (new-object Random).NextBytes($out); [IO.File]::WriteAllBytes('.\test.dat', $out)
+// Create a random file with specific size - Linux / Mac OS
+// head -c 8388608 </dev/urandom >myfile
+
 var (
-	source      string
-	destination string
-	offset      int64
-	limit       int64
+	source      string // sorce file
+	destination string // destination file
+	offset      int64  // offset in the source file
+	limit       int64  // limit of bytes to copy
 )
 
 func init() {
@@ -45,71 +50,42 @@ const (
 	DefaultBlockSize = 4096
 )
 
-func goCopy(source string, destination string, offset int64, limit int64) (int64, error) {
-	// It is assumed that input parameters are validated outside the goCopy function
-	// seek to the desired offset in the source file
+func copier(rs io.ReadSeeker, w io.Writer, srcSize int64, ofs int64, lm int64) error {
 
-	log.Println("Offset=", offset)
-	log.Println("Limit=", limit)
-
-	src, err := os.Open(source)
-
-	if err != nil {
-		return 0, err
-	}
-	defer src.Close()
-
-	dst, err := os.Create(destination)
-
-	if err != nil {
-
-		return 0, err
-	}
-
-	defer dst.Close()
-
-	if offset > 0 {
-		if _, err := src.Seek(offset, 0); err != nil {
-			return 0, err
+	if ofs > 0 {
+		if _, err := rs.Seek(ofs, io.SeekStart); err != nil {
+			log.Println("Seek Error", err)
+			return err
 		}
-	} else if offset < 0 {
-		if _, err := src.Seek(offset, 0); err != nil {
-			return 0, err
+	} else if ofs < 0 {
+		if _, err := rs.Seek(ofs, io.SeekEnd); err != nil {
+			return err
 		}
 	}
-	sourcefileinfo, err := src.Stat()
+
 	var totalamountofbytes int64
-	if sourcefileinfo.Size() < limit {
-		totalamountofbytes = sourcefileinfo.Size() - offset
-	} else if limit != 0 {
-		totalamountofbytes = limit - offset
-	} else {
-		totalamountofbytes = sourcefileinfo.Size() - offset
+	// srcSize = 10, lm = 5 , ofs = 5
+	switch {
+	case ofs < 0 && lm == 0:
+		totalamountofbytes = srcSize + ofs
+	case ofs < 0 && lm > 0:
+		totalamountofbytes = lm
+	case srcSize < lm:
+		totalamountofbytes = srcSize - offset
+	case lm != 0 && ofs != 0 && lm == ofs:
+		totalamountofbytes = lm
+	case lm != 0 && lm > ofs:
+		totalamountofbytes = lm - ofs
+	default:
+		totalamountofbytes = srcSize - offset
 	}
+	log.Println("Size of source", srcSize)
+	log.Println("Offset", ofs)
+	log.Println("Limit", lm)
+	log.Println("totalamount of bytes", totalamountofbytes)
+	buffer := make([]byte, DefaultBlockSize)
 
-	log.Println("Souce file size", totalamountofbytes)
-
-	var blocksize int64
-
-	blocksize = DefaultBlockSize // Set the Default value 4096
-
-	if limit-offset < blocksize {
-		blocksize = limit - offset
-	}
-
-	log.Println("Block size", blocksize)
-
-	buffer := make([]byte, blocksize)
-
-	actuallimit := limit - offset
-
-	if limit == 0 {
-		actuallimit = totalamountofbytes
-	}
-
-	log.Println("Actual Limit", actuallimit)
-
-	lreader := io.LimitReader(src, actuallimit)
+	lmr := io.LimitReader(rs, totalamountofbytes)
 
 	pbar := pb.Start64(totalamountofbytes)
 	pbar.SetWidth(100)
@@ -117,25 +93,71 @@ func goCopy(source string, destination string, offset int64, limit int64) (int64
 
 	for {
 
-		bytesread, errRead := lreader.Read(buffer)
-
-		//log.Println(bytesread)
+		bytesread, errRead := lmr.Read(buffer)
 
 		if bytesread > 0 {
-			_, errWrite := dst.Write(buffer[:bytesread])
+			_, errWrite := w.Write(buffer[:bytesread])
 			if errWrite != nil {
-				return 0, errWrite
+				return errWrite
 			}
 			pbar.Add(bytesread)
 
 		}
 		if errRead != nil {
 			pbar.Finish()
-			return 0, errRead
+			return errRead
 		}
 
 	}
 
+}
+
+func goCopy(source string, destination string, offset int64, limit int64) (int64, error) {
+	// It is assumed that input parameters are validated outside the goCopy function
+	// seek to the desired offset in the source file
+	// 1. Open Source file & check err
+	// 2. Open Destination file & check err
+	// 3. Calculate the total amount of bytes to be copied
+	// 4. Set offset in the source file in accordance with input data
+	// 5. Initilize the progress bar
+	// 6. Initilize the io.reader with specific limit in accordance with input parameters
+	// 7. Read in loop the source file until EOF or error
+	// 8. Finalize the progress bar
+
+	// Debug printouts will be removed.
+	log.Println("Offset=", offset)
+	log.Println("Limit=", limit)
+
+	// Open the source file
+	src, err := os.Open(source)
+
+	if err != nil {
+		return 0, err
+	}
+	defer src.Close() // Don't forget to close it
+
+	// Open the destination file
+	dst, err := os.Create(destination)
+
+	if err != nil {
+
+		return 0, err
+	}
+
+	defer dst.Close() // Don't forget to close it
+	// Get sourece file information struct in order to determine the size of file
+	sourcefileinfo, err := src.Stat()
+
+	sourcefilesize := sourcefileinfo.Size()
+
+	// Run the copier within input data...
+	err = copier(src, dst, sourcefilesize, offset, limit)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return 0, nil
 }
 
 func main() {

@@ -1,3 +1,6 @@
+// Sergey Olisov (c) 2019
+// Lesson 6
+
 package main
 
 import (
@@ -13,6 +16,12 @@ import (
 // $out = new-object byte[] 50G; (new-object Random).NextBytes($out); [IO.File]::WriteAllBytes('.\test.dat', $out)
 // Create a random file with specific size - Linux / Mac OS
 // head -c 8388608 </dev/urandom >myfile
+
+const (
+	// DefaultBlockSize for dd tool is 512 but modern HDD/SDD use 4096
+	// Considered to use the 4096
+	DefaultBlockSize = 4096
+)
 
 var (
 	source      string // sorce file
@@ -44,12 +53,6 @@ func validateArgs() {
 		os.Exit(1)
 	}
 }
-
-const (
-	// DefaultBlockSize for dd tool is 512 but modern HDD/SDD use 4096
-	// Considered to use the 4096
-	DefaultBlockSize = 4096
-)
 
 func copier(rs io.ReadSeeker, w io.Writer, srcSize int64, ofs int64, lm int64) error {
 

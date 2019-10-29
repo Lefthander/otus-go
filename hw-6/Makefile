@@ -24,6 +24,7 @@ deps:
     $(GOGET) github.com/cheggaaa/pb/v3
 
 
+
 # cross compile
 
 build-linux: 

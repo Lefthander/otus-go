@@ -11,7 +11,7 @@ import (
 
 // ReadDir reads a specified folder and returns map of  env variables. Variables represented as files where filename - name of variable, file content -  value.
 func ReadDir(dir string) (map[string]string, error) {
-
+	// Contains the list of files in dir folder
 	files := []string{}
 
 	env := make(map[string]string)
@@ -21,7 +21,7 @@ func ReadDir(dir string) (map[string]string, error) {
 		log.Println("Error processing path ", err)
 		return nil, err
 	}
-
+	// Walk through the dir folder , add file name to the list, skip in case of nestested folder.
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -34,9 +34,7 @@ func ReadDir(dir string) (map[string]string, error) {
 		log.Println("Error reading directory", err)
 		return nil, err
 	}
-
-	fmt.Println(files)
-
+	// Process list of files : open / read / add to map[string]string
 	for _, file := range files {
 
 		data, err := ioutil.ReadFile(filepath.Join(rootpath, file))
@@ -85,12 +83,13 @@ func RunCmd(cmd []string, env map[string]string) error {
 func main() {
 
 	if len(os.Args) < 3 {
-		log.Println("Error Should be two arguments")
+		fmt.Println("Error Should be at least two arguments")
+		fmt.Println("Usage: goenv <path to folder with env files> <command args to execute>")
 		return
 	}
 	result, err := ReadDir(os.Args[1])
 	if err != nil {
-		log.Println("Error reading directory")
+		log.Println("Error reading directory", err)
 		return
 	}
 	err = RunCmd(os.Args[2:], result)

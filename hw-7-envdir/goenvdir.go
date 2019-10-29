@@ -1,3 +1,5 @@
+// Sergey Olisov (c) 2019
+// Lesson 7  - goenvdir
 package main
 
 import (
